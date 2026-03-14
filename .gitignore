@@ -1,0 +1,68 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+*.egg
+dist/
+build/
+.eggs/
+
+# Models & checkpoints
+*.safetensors
+*.ckpt
+*.pt
+*.bin
+*.pth
+
+# Data files
+*.npy
+*.npz
+*.parquet
+*.mp4
+*.mkv
+*.avi
+*.mov
+*.webm
+
+# Large assets
+*.pdf
+*.gif
+
+# Model directories
+data/models/
+
+# Videos
+data/videos/
+
+# Test outputs
+data/test_*.json
+data/outputs_backup_*/
+
+# Logs
+tests/logs/
+nohup.out
+*.log
+
+# Reference repos (cloned externally)
+references/
+
+# IDE / editor
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Ruff cache
+.ruff_cache/
+
+# Environment
+.env
+*.env
+
+# Jupyter
+.ipynb_checkpoints/

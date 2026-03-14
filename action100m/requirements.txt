@@ -1,0 +1,36 @@
+# Core dependencies
+torch>=2.1.0
+torchvision>=0.16.0
+numpy>=1.24.0
+scipy>=1.11.0
+scikit-learn>=1.3.0
+Pillow>=10.0.0
+openmim>=0.3.9
+
+# Video processing
+decord>=0.6.0
+opencv-python>=4.8.0
+ffmpeg-python>=0.2.0
+
+# ML/VLM models
+transformers>=4.36.0
+accelerate>=0.25.0
+bitsandbytes>=0.41.0
+sentencepiece>=0.1.99
+tiktoken>=0.5.0
+
+# API clients
+anthropic>=0.18.0
+openai>=1.6.0
+
+# Configuration
+pyyaml>=6.0
+omegaconf>=2.3.0
+
+# Utilities
+tqdm>=4.66.0
+huggingface-hub>=0.20.0
+safetensors>=0.4.0
+
+# Datasets
+huggingface_hub>=0.20.0

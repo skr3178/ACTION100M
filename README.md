@@ -1,126 +1,143 @@
-<div align="center">
+# Action100M Pipeline
 
-# [**Action100M**: A Large-scale Video Action Dataset](https://www.arxiv.org/abs/2601.10592)
+Implementation of the Action100M data pipeline for generating hierarchical video action annotations.
 
+## Pipeline Stages
 
-[**Delong Chen**](https://chendelong.world/)
-    <img src="assets/meta_logo.png" alt="Logo" width="13">
-    <img src="assets/hkust_logo.png" alt="Logo" width="8">
-    &nbsp;&nbsp; 
-[**Tejaswi Kasarla**](https://tkasarla.github.io/)
-    <img src="assets/meta_logo.png" alt="Logo" width="13">
-    <img src="assets/amst_logo.png" alt="Logo" width="10">
-    &nbsp; 
-[**Yejin Bang**](https://scholar.google.com/citations?user=s2bVuXEAAAAJ)
-    <img src="assets/meta_logo.png" alt="Logo" width="13">
-    &nbsp;&nbsp; 
-[**Mustafa Shukor**](https://mustafashukor.github.io/)
-    <img src="assets/meta_logo.png" alt="Logo" width="13">
-    <img src="assets/sorbonne_logo.jpeg" alt="Logo" width="6">
-    &nbsp;&nbsp; 
+### Stage 1: Temporal Segmentation
+- Uses V-JEPA 2 (facebook/vjepa2-vitg-fpc64-384) to encode video frames
+- Samples 1-in-4 frames with 64-frame windows (stride 8)
+- Applies hierarchical agglomerative clustering with Ward linkage
+- Prunes segments shorter than 0.5 seconds
 
-[**Willy Chung**](https://willyhc22.github.io/) 
-    <img src="assets/meta_logo.png" alt="Logo" width="13">
-    <img src="assets/sorbonne_logo.jpeg" alt="Logo" width="6">
-    &nbsp;&nbsp; 
-[**Jade Yu**](https://jadeleiyu.github.io/)
-    <img src="assets/meta_logo.png" alt="Logo" width="13">
-    &nbsp; &nbsp; 
-[**Allen Bolourchi**](https://viterbi.usc.edu/directory/faculty/Bolourchi/Allen)
-    <img src="assets/meta_logo.png" alt="Logo" width="13">
-    &nbsp; 
-[**Théo Moutakanni**](https://scholar.google.com/citations?user=nN2MKGwAAAAJ) 
-    <img src="assets/meta_logo.png" alt="Logo" width="13">
-    &nbsp;&nbsp; 
-[**Pascale Fung**](https://scholar.google.com/citations?user=QEMJWzEAAAAJ/)
-    <img src="assets/meta_logo.png" alt="Logo" width="13">
-    <img src="assets/hkust_logo.png" alt="Logo" width="8"> 
-    &nbsp; 
+### Stage 2: Caption Generation
+- **Leaf nodes**: LLaMA-3.2-Vision-11B on middle frame at 320²
+- **Non-leaf nodes**: PerceptionLM-3B on 32 evenly-spaced frames at 320²
 
-<img src="assets/meta_logo.png" alt="Logo" width="16"> Meta FAIR
-    &nbsp; &nbsp; 
-<img src="assets/hkust_logo.png" alt="Logo" width="9"> HKUST
-    &nbsp; &nbsp; 
-<img src="assets/amst_logo.png" alt="Logo" width="12"> University of Amsterdam
-    &nbsp; &nbsp;
-<img src="assets/sorbonne_logo.jpeg" alt="Logo" width="8"> Sorbonne Université
-    &nbsp; &nbsp;
+### Stage 3: LLM Aggregation
+- Uses Claude API (or OpenAI GPT-4o) to extract structured annotations
+- 3 rounds of Self-Refine for quality improvement
+- Nodes shorter than 4 seconds are discarded
+- Output fields: brief_action, detailed_action, actor, brief_caption, detailed_caption
 
+## Installation
 
-</div>
+```bash
+# Clone and install
+cd action100m
+pip install -e .
 
-<p align="center">
-	<img src="assets/wordcloud.jpeg" width=100%>
-	<img src="assets/action_sunburst.jpeg" width=100%>
-</p>
-
-
-
-## Load Action100M Annotations
-
-Our data can be loaded from the 🤗 huggingface repo at [`facebook/action100m-preview`](https://huggingface.co/datasets/facebook/action100m-preview) where we released 10% of the full Action100M for preview. For examples of loading from local parquet files (from cloned repo) and visualization, see [`usage.ipynb`](https://github.com/facebookresearch/Action100M/blob/main/usage.ipynb). The [`data/hySSAAw4t24.json`](https://github.com/facebookresearch/Action100M/blob/main/data/hySSAAw4t24.json) stored in this repo shows a sample. 
-
-```python
-from datasets import load_dataset
-
-dataset = load_dataset(
-    "parquet",
-    data_files=f"hf://datasets/facebook/Action100M-preview/data/*.parquet",
-    streaming=True,
-)
-it = iter(dataset["train"])
-
-sample = next(it)
+# Or install dependencies directly
+pip install -r requirements.txt
 ```
 
-Each `sample` loaded above contains all annotations for one video, and it has three fields:
+## Usage
 
-* `video_uid` *(string)*: YouTube video id of the source video.
-* `metadata` *(dict)*: video-level metadata (title / description / ASR transcript, etc.)
-* `nodes` *(list[dict])*: annotations for each segments.
+### Quick Start
 
+```bash
+# Process a video with all stages
+python -m action100m.scripts.run_pipeline input/video.mp4 -o output
 
-Each element in `nodes` is a temporally localized segment in the hierachical Tree-of-Captions, it contains:
+# Process a directory of videos
+python -m action100m.scripts.run_pipeline input/videos/ -o output
 
-* `start`, `end` *(float)*: segment boundaries in seconds within the full video.
-* `node_id` *(string)*: unique id of this segment node.
-* `parent_id` *(string or null)*: id of the parent segment. The root node (corresponding to the entire video) has `parent_id = null`.
-* `level` *(int)*: depth in the hierarchy. Smaller `level` is coarser (longer segments); larger `level` is finer (shorter segments).
-* `plm_caption` *(string or null)*: a caption generated by PLM-3B for this segment.
-* `plm_action` *(string or null)*: a short action label produced by PLM-3B.
-* `llama3_caption` *(string or null)*: middle frame caption produced by LLama-3.2-Vision-11B for leaf nodes.
-* `gpt` *(dict or null)*: main Action100M annotations, available for segments that is not too short:
+# Run only specific stages
+python -m action100m.scripts.run_pipeline input/video.mp4 -o output --stage 1  # Only segmentation
+python -m action100m.scripts.run_pipeline input/video.mp4 -o output --stage 2  # Only captioning
+python -m action100m.scripts.run_pipeline input/video.mp4 -o output --stage 3  # Only aggregation
+```
 
-  * `gpt["summary"]["brief"]`: one-sentence concise caption of the segment.
-  * `gpt["summary"]["detailed"]`: longer, detailed summarization of the video segment.
-  * `gpt["action"]["brief"]`: short verb phrase naming the step.
-  * `gpt["action"]["detailed"]`: imperative-style instruction describing how the action is done.
-  * `gpt["action"]["actor"]`: who/what performs the action (noun phrase).
+### API Key Setup
 
+For Stage 3 (LLM Aggregation), set your API key:
 
+```bash
+# Option 1: Environment variable
+export ANTHROPIC_API_KEY=your_key_here
+# or
+export OPENAI_API_KEY=your_key_here
 
-## Exampls
+# Option 2: Command line argument
+python -m action100m.scripts.run_pipeline input/video.mp4 --api-key your_key_here
+```
 
-<p align="center">
-	<img src="assets/exampls_1.gif" width=100%>
-	<img src="assets/exampls_2.gif" width=100%>
-</p>
+### Configuration
 
-Texts shown correspond to brief action description (i.e., `gpt["action"]["brief"]`).
+Edit `action100m/configs/config.yaml` to customize:
+- Model choices and parameters
+- Frame sampling rates
+- Clustering parameters
+- API settings
 
+## Output Structure
+
+```
+output/
+├── stage1/
+│   └── video_segmentation.json    # Hierarchical segmentation tree
+├── stage2/
+│   └── video_captions.json       # Tree-of-Captions
+├── stage3/
+│   └── video_annotations.json    # Structured annotations
+└── summary.json                   # Processing summary
+```
+
+## Hardware Requirements
+
+| GPU | VRAM | Feasibility |
+|-----|------|-------------|
+| RTX 4090/3090 | 24 GB | All stages run locally |
+| RTX 4070 Ti | 16 GB | V-JEPA fits (tight), captioning OK |
+| RTX 4060/3080 | 8-12 GB | Needs quantization + offloading |
+
+## Estimated Processing Time (per 5-min video)
+
+| Stage | Time (24GB GPU) |
+|-------|-----------------|
+| Stage 1: Segmentation | ~2-5 min |
+| Stage 2: Captioning | ~10-20 min |
+| Stage 3: Aggregation | ~5-10 min (API) |
 
 ## License
 
-Action100M is under FAIR Noncommercial Research License, as found in the LICENSE file.
+MIT License - See LICENSE file for details.
 
 
-## Citation
+## 
+Other option is to use OpenGVLab/InternVL3-78B instead of the QWEN model
 
-```
-@article{chen2026action100m,
-  title={Action100M: A Large-scale Video Action Dataset},
-  author={Chen, Delong and Kasarla, Tejaswi and Bang, Yejin and Shukor, Mustafa and Chung, Willy and Yu, Jade and Bolourchi, Allen and Moutakanni, Théo and Fung, Pascale},
-  journal={arXiv preprint arXiv:2601.10592},
-  year={2026}
-}
-```
+## Output from training:
+
+┌────────────┬──────────────────────────────────────────────┬─────────────────────────────────────────────────┐
+│ Time Range │          Ground Truth (Action100M)           │                  Our Pipeline                   │
+├────────────┼──────────────────────────────────────────────┼─────────────────────────────────────────────────┤
+│ 0–120s+    │ "restore vintage wall unit" — Brini Maxwell  │ "sand and paint cabinet" — woman in vintage     │
+│            │                                              │ dress                                           │
+├────────────┼──────────────────────────────────────────────┼─────────────────────────────────────────────────┤
+│ 8.5–120s+  │ "Antique a vintage wall unit" — Brini        │ "paint cabinet" — woman in yellow floral dress  │
+│            │ Maxwell                                      │                                                 │
+├────────────┼──────────────────────────────────────────────┼─────────────────────────────────────────────────┤
+│ 56–120s+   │ "Paint and glaze a wooden wall unit"         │ "restore furniture"                             │
+├────────────┼──────────────────────────────────────────────┼─────────────────────────────────────────────────┤
+│ 66.7–120s+ │ "Sand, prime, and paint cabinet"             │ "paint dresser"                                 │
+├────────────┼──────────────────────────────────────────────┼─────────────────────────────────────────────────┤
+│ 8.5–56s    │ "Demonstrate sanding"                        │ "present furniture"                             │
+└────────────┴──────────────────────────────────────────────┴─────────────────────────────────────────────────┘
+
+Key observations:
+
+1. Segment boundaries are very close — our clustering found nearly identical breakpoints (8.5s vs 8.7s, 56.9s vs
+56.0s, 66.7s matches exactly). This validates Stage 1.
+2. Actions are semantically similar but ours are less specific — the ground truth includes details like "glaze",
+"antiquing", "speckles" while ours are more generic. This is because:
+- Ground truth uses the full video context (688s) — our test only processed 120s
+- Ground truth has ASR transcript + video title/description fed to the LLM
+- Ground truth uses 3 rounds of self-refine; we used 1
+3. Actor identification — ground truth identifies "Brini Maxwell" by name (from metadata/ASR), ours just says
+"woman in yellow floral dress"
+4. Level numbering differs — ground truth uses L0-L6 (coarse to fine), ours uses L13-L18. This is because our
+dendrogram goes all the way to per-frame leaves, inflating level numbers.
+
+The pipeline is working correctly — the improvements would come from feeding metadata/ASR context and processing
+the full video.

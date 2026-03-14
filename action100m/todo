@@ -1,0 +1,17 @@
+The 0.5s filter is applied only to non-leaf (internal) nodes. All 899 leaf nodes (each 0.13s — a single sampled   
+frame) are kept unconditionally.                                                                                  
+
+We retain only nodes whose
+duration is larger than 0.5 seconds, ensuring that each segment is semantically meaningful.
+
+Key gaps remaining:
+
+1. Actor naming — GT identifies "Brini Maxwell" by name. Despite having ASR transcript with her name, our LLM
+isn't extracting it. The prompt likely needs to explicitly instruct "use the person's name if mentioned in the
+transcript."
+2. Action specificity — GT has richer verbs ("antique", "demonstrate sanding"). This is partly because GT
+processes the full video (688s) giving more context, and uses 3 rounds of Self-Refine vs our 1.
+3. Segment boundaries match well — 8.5 vs 8.7s, 56.9 vs 56.0s, 66.7s exact match. Stage 1 segmentation is solid.
+
+Want me to improve the prompt to better leverage the ASR/metadata, or increase refine rounds to 3 to match the
+paper?

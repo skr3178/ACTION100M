@@ -1,0 +1,91 @@
+# Action100M Pipeline Configuration
+
+# Stage 1: Temporal Segmentation
+stage1:
+  # V-JEPA 2 model configuration
+  model_name: "facebook/vjepa2-vitg-fpc64-384"
+  model_device: "cuda"
+  
+  # Frame sampling
+  frame_sample_rate: 4  # Sample 1-in-4 frames
+  
+  # Window configuration
+  window_size: 64      # 64 frames per window
+  window_stride: 8     # 8 frame stride
+  
+  # Clustering configuration
+  clustering:
+    linkage: "ward"     # Ward linkage
+    connectivity: true  # Temporal connectivity constraint
+    n_neighbors: 5      # For connectivity graph
+    
+  # Pruning
+  min_duration_seconds: 0.5  # Minimum segment duration
+
+# Stage 2: Caption Generation
+stage2:
+  # Leaf node captioning (LLaMA-3.2-Vision-11B)
+  leaf:
+    model_name: "meta-llama/Llama-3.2-11B-Vision"
+    resolution: 320
+    prompt: "Describe this image in detail."
+    max_tokens: 1024
+    device: "cuda"
+  
+  # Non-leaf node captioning (PerceptionLM-3B)
+  non_leaf:
+    model_name: "facebook/Perception-LM-3B"
+    resolution: 320
+    num_frames: 32
+    prompt: "Describe this video in detail."
+    max_tokens: 1024
+    device: "cuda"
+
+# Stage 3: LLM Aggregation
+stage3:
+  # Use API (recommended for practicality)
+  use_api: true
+  
+  # API configuration
+  api:
+    provider: "anthropic"  # or "openai"
+    model: "claude-sonnet-4-20250514"  # or "gpt-4o"
+    max_retries: 3
+    timeout: 120
+  
+  # Local model configuration (if use_api: false)
+  local:
+    model_name: "meta-llama/Llama-3.1-70B-Instruct-Q4_K_M"
+    device: "cuda"
+    max_tokens: 1024
+  
+  # Duration threshold - nodes shorter than 4 seconds are discarded
+  min_duration_seconds: 4
+  
+  # Self-Refine rounds
+  num_refine_rounds: 3
+  
+  # Output fields
+  output_fields:
+    - "brief_action"
+    - "detailed_action"
+    - "actor"
+    - "brief_caption"
+    - "detailed_caption"
+
+# Video processing
+video:
+  # Input video extensions
+  extensions: [".mp4", ".mkv", ".avi", ".webm"]
+  
+  # Maximum video length (seconds)
+  max_duration: 3600
+  
+  # Output
+  output_dir: "output"
+  cache_dir: ".cache"
+
+# Logging
+logging:
+  level: "INFO"
+  format: "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
