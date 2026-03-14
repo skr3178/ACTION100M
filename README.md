@@ -134,3 +134,54 @@ Comparison on a 120-second clip from video `zpcK1IzH6b8` (Shabby Chic Furniture 
 4. **Level numbering differs** -- Ground truth uses L0-L6 (coarse to fine), ours uses L13-L18 because our full dendrogram extends to per-frame leaves, inflating level numbers. This is addressed by tree pruning.
 
 The pipeline is working correctly. Improvements would come from feeding metadata/ASR context and processing full-length videos.
+
+## Implementation Status & TODO
+
+## Known Issues
+
+1. Actor naming — GT identifies "Brini Maxwell" by name. Prompt now instructs LLM to use names
+   from ASR/metadata. Needs re-testing to verify improvement.
+2. Action specificity — GT has richer verbs ("antique", "demonstrate sanding"). This is partly because GT
+   processes the full video (688s) giving more context.
+3. Segment boundaries match well — 8.5 vs 8.7s, 56.9 vs 56.0s, 66.7s exact match. Stage 1 segmentation is solid.
+
+## Implementation Gaps (Paper vs Code)
+
+### Stage 2: Caption Generation
+- [x] Stage 2 leaf prompt should match paper exactly: "Describe this image in detail."
+- [x] Stage 2 non-leaf prompt should match paper exactly: "Describe this video in detail."
+- [x] Non-leaf frame count should default to 32 (updated in test script)
+- [x] Max tokens should default to 1024 (updated in both test scripts)
+- [ ] Model substitution: paper uses Llama-3.2-Vision-11B (leaf) + PerceptionLM-3B (non-leaf),
+      we use Qwen3-VL-4B-AWQ for both (12GB VRAM constraint). No fix needed unless GPU upgraded.
+
+### Stage 3: LLM Aggregation
+- [x] Children captions now depth-first recursive via _get_dfs_captions (max_depth=5)
+- [x] Root caption lookup now finds actual root (node with no parent) instead of hardcoding node_id=0
+- [x] Self-Refine rounds set to 3 in test script (matching paper)
+- [x] Actor prompt updated to instruct LLM to use names from ASR/metadata
+- [ ] Model substitution: paper uses GPT-OSS-120B, we use GPT-4o. No fix needed.
+
+### Pruning
+- [ ] Pruning requires re-encoding (~10 min) because embeddings weren't cached in initial runs.
+      test_stage1_short.py now caches to data/test_embeddings_short.npy but hasn't been re-run yet.
+- [ ] The 0.5s filter in the paper applies to ALL nodes. Our pruning collapses sub-0.5s leaves upward
+      to the lowest ancestor >= 0.5s. Verify this matches the paper's intent.
+- [x] prune_tree.py updated to use correct embedding cache path
+
+## Completed
+
+- [x] Stage 1: V-JEPA 2 encoding with overlapping windows (sample_rate=4, window=64, stride=8)
+- [x] Stage 1: Spatial average pooling + temporal tubelet upsample
+- [x] Stage 1: Hierarchical agglomerative clustering (Ward linkage, temporal chain connectivity)
+- [x] Stage 1: Full dendrogram preserved, pruning as separate step
+- [x] Stage 1: Checkpoint saving/resumption for long encoding runs
+- [x] Stage 2: Qwen3-VL-4B-AWQ loading via Qwen3VLForConditionalGeneration
+- [x] Stage 2: Leaf captioning (single mid-frame) — tested on 20 leaves
+- [x] Stage 2: Non-leaf segment captioning (multi-frame) — tested on 10 segments
+- [x] Stage 3: LLM aggregation with OpenAI GPT-4o API — tested on 5 nodes
+- [x] Stage 3: Video metadata (title, description, ASR transcript) passed as context
+- [x] Stage 3: Structured output (5 fields: brief/detailed action, actor, brief/detailed caption)
+- [x] Pipeline validated against ground truth from parquet (segment boundaries match well)
+- [x] Project organized: tests/, docs/, action100m/src/, .gitignore
+- [x] Pushed to GitHub: https://github.com/skr3178/action100m.git
