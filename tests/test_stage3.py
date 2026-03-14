@@ -10,7 +10,7 @@ logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
 from stage3_aggregation import LLMAggregator
 
 # ── Config ───────────────────────────────────────────────────────────────────
-STAGE1_RESULT    = "/media/skr/storage/3DGS/RhodusAI/Action100M/data/test_stage1_short_result.json"
+STAGE1_RESULT    = "/media/skr/storage/3DGS/RhodusAI/Action100M/data/test_stage1_short_pruned.json"
 LEAF_CAPTIONS    = "/media/skr/storage/3DGS/RhodusAI/Action100M/data/test_stage2_leaf_result.json"
 NONLEAF_CAPTIONS = "/media/skr/storage/3DGS/RhodusAI/Action100M/data/test_stage2_nonleaf_result.json"
 PARQUET_PATH     = "/media/skr/storage/3DGS/RhodusAI/Action100M/data/parquet/part-00028.parquet"

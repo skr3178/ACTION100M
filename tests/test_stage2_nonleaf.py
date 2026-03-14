@@ -17,8 +17,8 @@ import decord
 decord.bridge.set_bridge("native")
 
 # ── Config ───────────────────────────────────────────────────────────────────
-VIDEO_PATH      = "/media/skr/storage/3DGS/RhodusAI/Action100M/data/videos/zpcK1IzH6b8.mp4"
-STAGE1_RESULT   = "/media/skr/storage/3DGS/RhodusAI/Action100M/data/test_stage1_short_result.json"
+VIDEO_PATH      = "/media/skr/storage/3DGS/RhodusAI/Action100M/data/videos/zpcK1IzH6b8_90_120s.mp4"
+STAGE1_RESULT   = "/media/skr/storage/3DGS/RhodusAI/Action100M/data/test_stage1_short_pruned.json"
 OUTPUT_PATH     = "/media/skr/storage/3DGS/RhodusAI/Action100M/data/test_stage2_nonleaf_result.json"
 MODEL_PATH      = "/media/skr/storage/3DGS/RhodusAI/Action100M/data/models/qwen3-vl-4b-awq"
 SAMPLE_RATE     = 4
