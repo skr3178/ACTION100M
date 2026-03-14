@@ -20,7 +20,8 @@ stage1:
     n_neighbors: 5      # For connectivity graph
     
   # Pruning
-  min_duration_seconds: 0.5  # Minimum segment duration
+  min_duration_seconds: 0.5    # Minimum duration for non-leaf nodes
+  min_leaf_duration_seconds: 1.0  # Minimum duration for leaf nodes (actions)
 
 # Stage 2: Caption Generation
 stage2:

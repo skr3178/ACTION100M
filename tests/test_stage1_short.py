@@ -10,10 +10,10 @@ import logging
 logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
 
 MODEL_PATH = "/media/skr/storage/3DGS/RhodusAI/Action100M/data/models/vjepa2"
-VIDEO_PATH = "/media/skr/storage/3DGS/RhodusAI/Action100M/data/videos/zpcK1IzH6b8.mp4"
+VIDEO_PATH = "/media/skr/storage/3DGS/RhodusAI/Action100M/data/videos/zpcK1IzH6b8_90_120s.mp4"
 OUTPUT_DIR = "/media/skr/storage/3DGS/RhodusAI/Action100M/data"
 
-CLIP_SECONDS = 120  # 2 minutes
+CLIP_SECONDS = 9999  # process full video
 
 config = {
     "model_name": MODEL_PATH,

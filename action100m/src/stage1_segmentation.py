@@ -79,11 +79,13 @@ class VideoLoader:
         Returns:
             Frames array (T, H, W, C)
         """
-        real_indices = list(range(
-            sampled_start * self.sample_rate,
-            sampled_end * self.sample_rate,
-            self.sample_rate,
-        ))
+        real_indices = list(
+            range(
+                sampled_start * self.sample_rate,
+                sampled_end * self.sample_rate,
+                self.sample_rate,
+            )
+        )
         real_indices = [min(i, len(vr) - 1) for i in real_indices]
         return vr.get_batch(real_indices).asnumpy()
 
@@ -168,12 +170,16 @@ class VJepa2Encoder:
         tubelet_size = self.model.config.tubelet_size  # 2
         T_tok = num_frames // tubelet_size
         N_patches = hidden.shape[1] // T_tok
-        embeddings = hidden.reshape(1, T_tok, N_patches, -1).mean(dim=2)  # (1, T_tok, D)
+        embeddings = hidden.reshape(1, T_tok, N_patches, -1).mean(
+            dim=2
+        )  # (1, T_tok, D)
 
         # Upsample temporal tokens back to frame resolution by repeating each token
         # tubelet_size times so shape matches the input frame count
         embeddings = embeddings.squeeze(0)  # (T_tok, D)
-        embeddings = embeddings.repeat_interleave(tubelet_size, dim=0)  # (num_frames, D)
+        embeddings = embeddings.repeat_interleave(
+            tubelet_size, dim=0
+        )  # (num_frames, D)
 
         return embeddings.cpu().numpy().astype(np.float32)
 
@@ -225,8 +231,13 @@ class VJepa2Encoder:
 
         window_starts = list(range(0, num_sampled_frames - window_size + 1, stride))
         for i, start_idx in enumerate(
-            tqdm(window_starts[start_window:], desc="Encoding windows",
-                 unit="win", initial=start_window, total=len(window_starts))
+            tqdm(
+                window_starts[start_window:],
+                desc="Encoding windows",
+                unit="win",
+                initial=start_window,
+                total=len(window_starts),
+            )
         ):
             end_idx = start_idx + window_size
             frames = video_loader.get_window_frames(vr, start_idx, end_idx)
@@ -236,10 +247,15 @@ class VJepa2Encoder:
 
             # Checkpoint every 50 windows
             if (start_window + i + 1) % 50 == 0:
-                np.savez(checkpoint_path,
-                         accum=embeddings_accum, count=embeddings_count,
-                         last_window=start_window + i)
-                logger.info(f"Checkpoint saved at window {start_window + i + 1}/{len(window_starts)}")
+                np.savez(
+                    checkpoint_path,
+                    accum=embeddings_accum,
+                    count=embeddings_count,
+                    last_window=start_window + i,
+                )
+                logger.info(
+                    f"Checkpoint saved at window {start_window + i + 1}/{len(window_starts)}"
+                )
 
         # Handle tail frames not covered by a full window.
         # Pad to tubelet_size boundary since V-JEPA 2 needs even frame counts.
@@ -252,8 +268,8 @@ class VJepa2Encoder:
             if usable > 0:
                 frames = video_loader.get_window_frames(vr, last_end, last_end + usable)
                 tail_embeddings = self.encode_frames(frames)
-                embeddings_accum[last_end:last_end + usable] += tail_embeddings
-                embeddings_count[last_end:last_end + usable] += 1
+                embeddings_accum[last_end : last_end + usable] += tail_embeddings
+                embeddings_count[last_end : last_end + usable] += 1
 
         # Clean up checkpoint on successful completion
         if os.path.exists(checkpoint_path):
@@ -274,11 +290,16 @@ class HierarchicalSegmenter:
     """Performs hierarchical temporal segmentation using agglomerative clustering."""
 
     def __init__(
-        self, linkage: str = "ward", n_neighbors: int = 5, min_duration: float = 0.5
+        self,
+        linkage: str = "ward",
+        n_neighbors: int = 5,
+        min_duration: float = 0.5,
+        min_leaf_duration: float = 1.0,
     ):
         self.linkage = linkage
         self.n_neighbors = n_neighbors
         self.min_duration = min_duration
+        self.min_leaf_duration = min_leaf_duration
         self.segments: List[Segment] = []
 
     def segment(
@@ -367,53 +388,85 @@ class HierarchicalSegmenter:
 
         return self.segments
 
-    def prune(self, min_duration: float = 0.5) -> List[Segment]:
-        """Prune the dendrogram so all leaves have duration >= min_duration.
+    def prune(
+        self, min_duration: float = 0.5, min_leaf_duration: float = 1.0
+    ) -> List[Segment]:
+        """Prune the dendrogram so all leaves have duration >= min_leaf_duration.
 
-        Walks bottom-up: any node below min_duration is removed, and the
-        lowest ancestor >= min_duration becomes the new leaf.
+        Walks bottom-up: any leaf below min_leaf_duration is removed, and the
+        lowest ancestor >= min_leaf_duration becomes the new leaf.
+
+        Args:
+            min_duration: Minimum duration for internal (non-leaf) nodes
+            min_leaf_duration: Minimum duration for leaf nodes (actions)
         """
         by_id = {s.node_id: s for s in self.segments}
 
-        # Find new leaf set: for each original leaf, walk up to the first
-        # ancestor whose duration >= min_duration.
+        # Step 1: Find new leaf set - for each original leaf, walk up to find
+        # ancestor with duration >= min_leaf_duration
         new_leaf_ids = set()
         for seg in self.segments:
             if not seg.is_leaf:
                 continue
-            if seg.duration >= min_duration:
+            # Leaf already long enough
+            if seg.duration >= min_leaf_duration:
                 new_leaf_ids.add(seg.node_id)
                 continue
+            # Walk up to find ancestor >= min_leaf_duration
             current = seg
             while current.parent_id is not None and current.parent_id in by_id:
                 current = by_id[current.parent_id]
-                if current.duration >= min_duration:
+                if current.duration >= min_leaf_duration:
                     new_leaf_ids.add(current.node_id)
                     break
 
+        # Step 2: Also filter internal nodes - ensure duration >= min_duration
+        # (unless they're ancestors of valid leaves)
+        final_leaf_ids = set()
+        for leaf_id in new_leaf_ids:
+            leaf_seg = by_id[leaf_id]
+            # Walk up from each leaf to filter out short internal nodes
+            current = leaf_seg
+            while current.parent_id is not None and current.parent_id in by_id:
+                parent = by_id[current.parent_id]
+                if parent.duration >= min_duration:
+                    final_leaf_ids.add(leaf_id)
+                    break
+                # This parent is too short, move up
+                current = parent
+            else:
+                # Reached root or parent not found - keep this leaf
+                final_leaf_ids.add(leaf_id)
+
         # Collect all ancestors of new leaves (these are the internal nodes to keep)
-        keep_ids = set(new_leaf_ids)
-        for nid in list(new_leaf_ids):
+        keep_ids = set(final_leaf_ids)
+        for nid in list(final_leaf_ids):
             current = by_id[nid]
             while current.parent_id is not None and current.parent_id in by_id:
-                keep_ids.add(current.parent_id)
-                current = by_id[current.parent_id]
+                parent = by_id[current.parent_id]
+                if parent.duration >= min_duration:
+                    keep_ids.add(parent.node_id)
+                    current = parent
+                else:
+                    break
 
         # Rebuild segments with updated children/leaf status
         pruned = []
         for nid in keep_ids:
             seg = by_id[nid]
             kept_children = [c for c in (seg.children_ids or []) if c in keep_ids]
-            pruned.append(Segment(
-                node_id=seg.node_id,
-                start_frame=seg.start_frame,
-                end_frame=seg.end_frame,
-                start_time=seg.start_time,
-                end_time=seg.end_time,
-                parent_id=seg.parent_id if seg.parent_id in keep_ids else None,
-                children_ids=kept_children,
-                level=seg.level,
-            ))
+            pruned.append(
+                Segment(
+                    node_id=seg.node_id,
+                    start_frame=seg.start_frame,
+                    end_frame=seg.end_frame,
+                    start_time=seg.start_time,
+                    end_time=seg.end_time,
+                    parent_id=seg.parent_id if seg.parent_id in keep_ids else None,
+                    children_ids=kept_children,
+                    level=seg.level,
+                )
+            )
 
         self.segments = pruned
         logger.info(
@@ -455,6 +508,7 @@ class TemporalSegmentationStage:
         self.window_size = config["window_size"]
         self.window_stride = config["window_stride"]
         self.min_duration = config["min_duration_seconds"]
+        self.min_leaf_duration = config.get("min_leaf_duration_seconds", 1.0)
 
         self.video_loader = VideoLoader(sample_rate=self.sample_rate)
         self.encoder = VJepa2Encoder(
@@ -464,6 +518,7 @@ class TemporalSegmentationStage:
             linkage=config["clustering"]["linkage"],
             n_neighbors=config["clustering"]["n_neighbors"],
             min_duration=self.min_duration,
+            min_leaf_duration=self.min_leaf_duration,
         )
 
     def load_model(self):
@@ -499,6 +554,11 @@ class TemporalSegmentationStage:
 
         # Perform hierarchical segmentation
         segments = self.segmenter.segment(embeddings, fps, self.sample_rate)
+
+        # Prune: collapse short leaves up to ancestors >= min_leaf_duration
+        segments = self.segmenter.prune(
+            min_duration=self.min_duration, min_leaf_duration=self.min_leaf_duration
+        )
         logger.info(f"Generated {len(segments)} segments after pruning")
 
         # Build tree structure

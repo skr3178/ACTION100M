@@ -22,7 +22,7 @@ MAX_NODES = 5  # limit for testing; set to None for all
 stage3_config = {
     "use_api": True,
     "min_duration_seconds": 4,   # only annotate segments >= 4s
-    "num_refine_rounds": 1,      # 1 round for testing (3 for production)
+    "num_refine_rounds": 3,      # paper: 3 rounds of Self-Refine
     "api": {
         "provider": "openai",
         "model": "gpt-4o",

@@ -23,7 +23,7 @@ OUTPUT_PATH    = "/media/skr/storage/3DGS/RhodusAI/Action100M/data/test_stage2_l
 MODEL_PATH     = "/media/skr/storage/3DGS/RhodusAI/Action100M/data/models/qwen3-vl-4b-awq"
 SAMPLE_RATE    = 4
 RESOLUTION     = 320
-MAX_TOKENS     = 256   # shorter for speed; increase to 1024 for production
+MAX_TOKENS     = 1024  # paper: generation limit of 1024 tokens
 MAX_LEAVES     = 20    # limit for testing; set to None for all leaves
 
 # ── 1. Load Stage 1 results ─────────────────────────────────────────────────
@@ -62,7 +62,7 @@ model.eval()
 print(f"Model loaded on CUDA")
 
 # ── 4. Caption each leaf (middle frame) ──────────────────────────────────────
-prompt = "Describe this image in one sentence. Focus on the main action or activity."
+prompt = "Describe this image in detail."
 results = []
 
 t0 = time.time()

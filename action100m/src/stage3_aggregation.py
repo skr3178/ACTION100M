@@ -114,6 +114,39 @@ class LLMAggregator:
             logger.warning(f"Failed to load local model: {e}")
             self.model = None
 
+    def _get_dfs_captions(
+        self, tree_of_captions: Dict[str, Any], node_id: int, max_depth: int = 5
+    ) -> List[str]:
+        """Collect children's captions in depth-first order (recursive).
+
+        Args:
+            tree_of_captions: Tree structure with captions
+            node_id: Current node ID
+            max_depth: Maximum recursion depth to prevent excessive context
+
+        Returns:
+            List of caption strings in DFS order
+        """
+        captions = []
+        node_info = tree_of_captions["tree"].get(node_id)
+        if not node_info or max_depth <= 0:
+            return captions
+
+        for child_id in node_info.get("children_ids", []):
+            child_id_str = str(child_id)
+            # Add this child's caption
+            child_caption = (
+                tree_of_captions["captions"].get(child_id_str, {}).get("caption", "")
+            )
+            if child_caption:
+                captions.append(child_caption)
+            # Recurse into child's children
+            captions.extend(
+                self._get_dfs_captions(tree_of_captions, child_id_str, max_depth - 1)
+            )
+
+        return captions
+
     def _build_prompt(
         self,
         tree_of_captions: Dict[str, Any],
@@ -131,22 +164,17 @@ class LLMAggregator:
             tree_of_captions["captions"].get(node_id, {}).get("caption", "")
         )
 
-        # Get children's captions in depth-first order
-        children_captions = []
-        children_ids = node_info.get("children_ids", [])
-        for child_id in children_ids:
-            child_caption = (
-                tree_of_captions["captions"].get(child_id, {}).get("caption", "")
-            )
-            if child_caption:
-                children_captions.append(child_caption)
+        # Get children's captions in depth-first order (recursive)
+        children_captions = self._get_dfs_captions(tree_of_captions, node_id)
 
-        # Get root caption for context
-        root_caption = (
-            tree_of_captions["captions"].get(0, {}).get("caption", "")
-            if 0 in tree_of_captions["captions"]
-            else ""
-        )
+        # Get root caption for context (find actual root — node with no parent)
+        root_caption = ""
+        for nid, info in tree_of_captions["tree"].items():
+            if info.get("parent_id") is None:
+                root_caption = (
+                    tree_of_captions["captions"].get(nid, {}).get("caption", "")
+                )
+                break
 
         # Build context info
         context_info = ""
@@ -183,7 +211,7 @@ Based on the above information, extract the following structured fields for the 
 
 1. brief_action: A very short action description (1-5 words, e.g., "add flour", "stir batter")
 2. detailed_action: Detailed action description (1-2 sentences)
-3. actor: Who performed the action (e.g., "person", "chef", "woman in kitchen")
+3. actor: Who performed the action. Use the person's name if mentioned in the title, description, or ASR transcript. Otherwise describe them (e.g., "person", "chef", "woman in kitchen")
 4. brief_caption: Brief video caption describing what happens (1 sentence)
 5. detailed_caption: Detailed video caption with full context (2-3 sentences)
 

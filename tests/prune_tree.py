@@ -9,7 +9,7 @@ logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
 
 from stage1_segmentation import HierarchicalSegmenter
 
-EMBED_PATH  = "/media/skr/storage/3DGS/RhodusAI/Action100M/data/test_embeddings.npy"
+EMBED_PATH  = "/media/skr/storage/3DGS/RhodusAI/Action100M/data/test_embeddings_short.npy"
 OUTPUT_PATH = "/media/skr/storage/3DGS/RhodusAI/Action100M/data/test_stage1_short_pruned.json"
 VIDEO_PATH  = "/media/skr/storage/3DGS/RhodusAI/Action100M/data/videos/zpcK1IzH6b8.mp4"
 

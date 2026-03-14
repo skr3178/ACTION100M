@@ -1,15 +1,18 @@
 """Stage 1 test: V-JEPA 2 encoding + hierarchical segmentation."""
+
 import sys
+
 sys.path.insert(0, "/media/skr/storage/3DGS/RhodusAI/Action100M/action100m/src")
 
 import os
 import time
 import numpy as np
 import logging
+
 logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
 
-MODEL_PATH  = "/media/skr/storage/3DGS/RhodusAI/Action100M/data/models/vjepa2"
-VIDEO_PATH  = "/media/skr/storage/3DGS/RhodusAI/Action100M/data/videos/zpcK1IzH6b8.mp4"
+MODEL_PATH = "/media/skr/storage/3DGS/RhodusAI/Action100M/data/models/vjepa2"
+VIDEO_PATH = "/media/skr/storage/3DGS/RhodusAI/Action100M/data/videos/zpcK1IzH6b8.mp4"
 EMBED_CACHE = "/media/skr/storage/3DGS/RhodusAI/Action100M/data/test_embeddings.npy"
 
 config = {
@@ -19,11 +22,13 @@ config = {
     "window_size": 64,
     "window_stride": 8,
     "min_duration_seconds": 0.5,
+    "min_leaf_duration_seconds": 1.0,
     "clustering": {"linkage": "ward", "n_neighbors": 5},
 }
 
 # ── 1. Init stage (single model load) ────────────────────────────────────────
 from stage1_segmentation import TemporalSegmentationStage
+
 stage1 = TemporalSegmentationStage(config)
 stage1.load_model()
 print(f"Model loaded — hidden_size: {stage1.encoder.model.config.hidden_size}")
@@ -40,7 +45,7 @@ print(f"Window embeddings shape: {emb.shape}")  # expect (64, 1408)
 
 # ── 4. Encode half the video (streaming) ──────────────────────────────────────
 clip_sampled = num_sampled // 2
-print(f"\n=== Encoding {clip_sampled} sampled frames ({duration/2:.0f}s clip) ===")
+print(f"\n=== Encoding {clip_sampled} sampled frames ({duration / 2:.0f}s clip) ===")
 
 if os.path.exists(EMBED_CACHE):
     print(f"Loading cached embeddings from {EMBED_CACHE}")
@@ -59,7 +64,7 @@ else:
         stride=8,
     )
     np.save(EMBED_CACHE, embeddings)
-    print(f"Done in {(time.time()-t0)/60:.1f} min — saved to {EMBED_CACHE}")
+    print(f"Done in {(time.time() - t0) / 60:.1f} min — saved to {EMBED_CACHE}")
     print(f"Embeddings shape: {embeddings.shape}")
 
 # ── 5. Cluster ────────────────────────────────────────────────────────────────
@@ -67,7 +72,7 @@ print("\n=== Clustering ===")
 segments = stage1.segmenter.segment(embeddings, fps, config["frame_sample_rate"])
 tree = stage1.segmenter.build_tree()
 
-leaves     = [s for s in segments if s.is_leaf]
+leaves = [s for s in segments if s.is_leaf]
 non_leaves = [s for s in segments if not s.is_leaf]
 print(f"Total: {len(segments)} | Leaves: {len(leaves)} | Non-leaves: {len(non_leaves)}")
 print(f"Tree nodes: {len(tree)}")
