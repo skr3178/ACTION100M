@@ -104,40 +104,33 @@ output/
 MIT License - See LICENSE file for details.
 
 
-## 
-Other option is to use OpenGVLab/InternVL3-78B instead of the QWEN model
+## Notes
 
-## Output from training:
+- Alternative Stage 2 model: `OpenGVLab/InternVL3-78B` instead of Qwen3-VL
 
-┌────────────┬──────────────────────────────────────────────┬─────────────────────────────────────────────────┐
-│ Time Range │          Ground Truth (Action100M)           │                  Our Pipeline                   │
-├────────────┼──────────────────────────────────────────────┼─────────────────────────────────────────────────┤
-│ 0–120s+    │ "restore vintage wall unit" — Brini Maxwell  │ "sand and paint cabinet" — woman in vintage     │
-│            │                                              │ dress                                           │
-├────────────┼──────────────────────────────────────────────┼─────────────────────────────────────────────────┤
-│ 8.5–120s+  │ "Antique a vintage wall unit" — Brini        │ "paint cabinet" — woman in yellow floral dress  │
-│            │ Maxwell                                      │                                                 │
-├────────────┼──────────────────────────────────────────────┼─────────────────────────────────────────────────┤
-│ 56–120s+   │ "Paint and glaze a wooden wall unit"         │ "restore furniture"                             │
-├────────────┼──────────────────────────────────────────────┼─────────────────────────────────────────────────┤
-│ 66.7–120s+ │ "Sand, prime, and paint cabinet"             │ "paint dresser"                                 │
-├────────────┼──────────────────────────────────────────────┼─────────────────────────────────────────────────┤
-│ 8.5–56s    │ "Demonstrate sanding"                        │ "present furniture"                             │
-└────────────┴──────────────────────────────────────────────┴─────────────────────────────────────────────────┘
+## Validation: Pipeline Output vs Ground Truth
 
-Key observations:
+Comparison on a 120-second clip from video `zpcK1IzH6b8` (Shabby Chic Furniture Distressing tutorial):
 
-1. Segment boundaries are very close — our clustering found nearly identical breakpoints (8.5s vs 8.7s, 56.9s vs
-56.0s, 66.7s matches exactly). This validates Stage 1.
-2. Actions are semantically similar but ours are less specific — the ground truth includes details like "glaze",
-"antiquing", "speckles" while ours are more generic. This is because:
-- Ground truth uses the full video context (688s) — our test only processed 120s
-- Ground truth has ASR transcript + video title/description fed to the LLM
-- Ground truth uses 3 rounds of self-refine; we used 1
-3. Actor identification — ground truth identifies "Brini Maxwell" by name (from metadata/ASR), ours just says
-"woman in yellow floral dress"
-4. Level numbering differs — ground truth uses L0-L6 (coarse to fine), ours uses L13-L18. This is because our
-dendrogram goes all the way to per-frame leaves, inflating level numbers.
+| Time Range | Ground Truth (Action100M) | Our Pipeline |
+|---|---|---|
+| **0-120s** | "restore vintage wall unit" -- Brini Maxwell | "sand and paint cabinet" -- woman in vintage dress |
+| **8.5-120s** | "Antique a vintage wall unit" -- Brini Maxwell | "paint cabinet" -- woman in yellow floral dress |
+| **56-120s** | "Paint and glaze a wooden wall unit" | "restore furniture" |
+| **66.7-120s** | "Sand, prime, and paint cabinet" | "paint dresser" |
+| **8.5-56s** | "Demonstrate sanding" | "present furniture" |
 
-The pipeline is working correctly — the improvements would come from feeding metadata/ASR context and processing
-the full video.
+### Key Observations
+
+1. **Segment boundaries are accurate** -- Our clustering found nearly identical breakpoints to the ground truth (8.5s vs 8.7s, 56.9s vs 56.0s, 66.7s exact match), validating Stage 1.
+
+2. **Actions are semantically similar but less specific** -- Ground truth includes details like "glaze", "antiquing", "speckles" while ours are more generic. This is expected because:
+   - Ground truth processes the full video (688s) vs our 120s clip
+   - Ground truth feeds ASR transcript + video metadata to the LLM
+   - Ground truth uses 3 rounds of Self-Refine; our test used 1
+
+3. **Actor identification** -- Ground truth identifies "Brini Maxwell" by name (extracted from ASR/metadata), while ours describes appearance ("woman in yellow floral dress").
+
+4. **Level numbering differs** -- Ground truth uses L0-L6 (coarse to fine), ours uses L13-L18 because our full dendrogram extends to per-frame leaves, inflating level numbers. This is addressed by tree pruning.
+
+The pipeline is working correctly. Improvements would come from feeding metadata/ASR context and processing full-length videos.
