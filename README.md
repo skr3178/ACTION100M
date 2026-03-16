@@ -2,6 +2,10 @@
 
 Implementation of the Action100M data pipeline for generating hierarchical video action annotations.
 
+## Data Source
+
+The video files used in this repository were sourced from the [HowTo100M](https://www.cs.cmu.edu/~howto100m/) dataset. HowTo100M is a large-scale dataset of instructional videos from YouTube, containing over 1 million videos spanning 23,000 categories. The YouTube video IDs and other metadata are provided in the dataset.
+
 ## Pipeline Stages
 
 ### Stage 1: Temporal Segmentation
