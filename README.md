@@ -1,3 +1,5 @@
+![action100m](action100m.jpg)
+
 # Action100M Pipeline
 
 Implementation of the Action100M data pipeline for generating hierarchical video action annotations.
