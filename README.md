@@ -15,8 +15,12 @@ The video files used in this repository were sourced from the [HowTo100M](https:
 - Prunes segments shorter than 0.5 seconds
 
 ### Stage 2: Caption Generation
-- **Leaf nodes**: LLaMA-3.2-Vision-11B on middle frame at 320²
-- **Non-leaf nodes**: PerceptionLM-3B on 32 evenly-spaced frames at 320²
+- **Original paper models**:
+  - Leaf nodes: LLaMA-3.2-Vision-11B on middle frame at 320²
+  - Non-leaf nodes: PerceptionLM-3B on 32 evenly-spaced frames at 320²
+- **Implementation**:
+  - Leaf nodes: Qwen3-VL-4B-AWQ on middle frame at 320²
+  - Non-leaf nodes: Qwen3-VL-4B-AWQ on 32 evenly-spaced frames at 320²
 
 ### Stage 3: LLM Aggregation
 - Uses Claude API (or OpenAI GPT-4o) to extract structured annotations
@@ -61,7 +65,8 @@ tail -f tests/logs/stage3.log
 ```
 ## Notes
 
-- Alternative Stage 2 model: `OpenGVLab/InternVL3-78B` instead of Qwen3-VL
+- This implementation uses Qwen3-VL-4B-AWQ instead of the paper's PerceptionLM-3B and LLaMA-3.2-Vision-11B models
+- Alternative Stage 2 model: `OpenGVLab/InternVL3-78B` can be used instead of Qwen3-VL
 
 ## Validation: Pipeline Output vs Ground Truth
 

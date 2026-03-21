@@ -23,7 +23,7 @@ OUTPUT_PATH     = "/media/skr/storage/3DGS/RhodusAI/Action100M/data/test_stage2_
 MODEL_PATH      = "/media/skr/storage/3DGS/RhodusAI/Action100M/data/models/qwen3-vl-4b-awq"
 SAMPLE_RATE     = 4
 RESOLUTION      = 320
-FRAMES_PER_SEG  = 32    # paper: 32 evenly spaced frames per segment
+FRAMES_PER_SEG  = 8     # paper: 32; reduced to 8 to fit 11GB GPU
 MAX_TOKENS      = 1024  # paper: generation limit of 1024 tokens
 MAX_SEGMENTS    = 10    # limit for testing; set to None for all non-leaves
 
